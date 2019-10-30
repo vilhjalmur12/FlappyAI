@@ -3,6 +3,7 @@ import os
 import numpy as np
 from collections import defaultdict
 import operator
+import matplotlib.pyplot as plt
 
 #from flappy_agent_mc import FlappyAgent
 
@@ -181,10 +182,20 @@ class test_flappy_mc(TestCase):
         name = ''
 
 
+    def test_plotting(self):
+        episodes = [1, 2, 3, 4, 5]
+        scores = [0, 0, 3, 4, 6]
+
+        plt.figure(figsize=(10, 5))
+        plt.plot(episodes, scores, 'r')
+        plt.grid(True)
+        #plt.xticks()
+        plt.title('Scores over episodes')
+        plt.xlabel('Episodes')
+        plt.ylabel('Score')
+        plt.show()
 
 
-
-        name = ''
 
 
 

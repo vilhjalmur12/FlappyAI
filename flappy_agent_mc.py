@@ -5,6 +5,9 @@ import operator
 from collections import defaultdict
 import pickle
 import matplotlib.pyplot as plt
+import sys
+import time
+import numpy as np
 
 discount = 0.1
 learning_rate = 0.1
@@ -172,19 +175,35 @@ class FlappyAgent:
 
 
 def plot_results(episodes, scores, save=False):
+    print episodes
+    print scores
     plt.figure(figsize=(10, 5))
-    plt.plot(episodes, scores)
-    plt.show()
+    plt.plot(episodes, scores, 'r')
+    plt.grid(True)
+    plt.title('Scores over episodes')
+    plt.xlabel('Episodes')
+    plt.ylabel('Score')
+    if save:
+        plt.savefig('./img/scores_{}.png'.format(episodes[len(episodes) - 1]))
+    else:
+        plt.show()
+
+def save_results(episodes, scores):
+    obj = { 'episodes': episodes, 'scores': scores }
+    with open('./results/MonteCarlo_{}'.format(episodes[len(episodes) - 1]), 'wb') as file:
+        pickle.dump(obj, file)
 
 
 
-def run_game(nb_episodes, agent):
+
+def run_game(nb_episodes, agent, verbose=False):
     """ Runs nb_episodes episodes of the game with agent picking the moves.
         An episode of FlappyBird ends with the bird crashing into a pipe or going off screen.
     """
     returns_sum = defaultdict(float)
     returns_count = defaultdict(float)
     discount_factor = 0.1
+    start_time = time.time()
 
 
     #reward_values = {"positive": 1.0, "negative": 0.0, "tick": 0.0, "loss": 0.0, "win": 0.0}
@@ -225,7 +244,9 @@ def run_game(nb_episodes, agent):
         
         # reset the environment if the game is over
         if env.game_over():
-            print("score for this episode: %d" % score)
+            if verbose:
+                print("score for this episode: %d" % score)
+
             env.reset_game()
 
             # Find all (state, action) pairs we've visited in this episode
@@ -247,51 +268,63 @@ def run_game(nb_episodes, agent):
 
             score = 0
             env.init()
-            game_on = True
-            print('=========    Starting trained game   =========')
-            while game_on:
-                state = env.game.getGameState()
-                state = (
-                state['player_vel'], state['player_y'], state['next_pipe_top_y'], state['next_pipe_dist_to_player'])
-                state = agent.construct_state(state)
-                action = agent.policy(state, agent.Q)
-                reward = env.act(env.getActionSet()[action])
-                score += reward
 
-                if env.game_over():
-                    print("Score for the Game: ", score)
-                    n_episode_list.append(episode_count)
-                    score_list.append(score)
-                    env.reset_game()
-                    score = 0
-                    game_on = False
+            # Do a test run every 10 episodes
+            if episode_count % 10 == 0:
+                game_on = True
+                if verbose:
+                    print('=========    Starting trained game   =========')
+                while game_on:
+                    state = env.game.getGameState()
+                    state = (
+                    state['player_vel'], state['player_y'], state['next_pipe_top_y'], state['next_pipe_dist_to_player'])
+                    state = agent.construct_state(state)
+                    action = agent.policy(state)
+                    reward = env.act(env.getActionSet()[action])
+                    score += reward
 
+                    if env.game_over():
+                        if verbose:
+                            print("Score for the Game: ", score)
+                        n_episode_list.append(episode_count)
+                        score_list.append(score)
+                        env.reset_game()
+                        score = 0
+                        game_on = False
 
             episode_count += 1
             score = 0
 
-    print('=========    Starting trained game   =========')
+    print 'Time Training: {} min'.format((time.time() - start_time)/60)
+
+    print('=========    Starting Final Test Game   =========')
 
     # Play 1 games after training
-    games = 1
     score = 0
     env.init()
-    while games > 0:
+    game_on = True
+    while game_on:
         state = env.game.getGameState()
         state = (state['player_vel'], state['player_y'], state['next_pipe_top_y'], state['next_pipe_dist_to_player'])
         state = agent.construct_state(state)
-        action = agent.policy(state, agent.Q)
+        action = agent.policy(state)
         reward = env.act(env.getActionSet()[action])
         score += reward
 
         if env.game_over():
             print("Score for the Game: ", score)
             env.reset_game()
-            games -= 1
-            score = 0
+            game_on = False
+
 
     agent.save_Q()
-    plot_results(n_episode_list, score_list)
+    plot_results(n_episode_list, score_list, save=True)
+    save_results(n_episode_list, score_list)
+
+if len(sys.argv) < 2:
+    print('Please specify with argument the episode count.')
+    print('Usage: python flappy_agent_mc.py 500')
+    exit(0)
 
 agent = FlappyAgent()
-run_game(5, agent)
+run_game(int(sys.argv[1]), agent, verbose=True)
