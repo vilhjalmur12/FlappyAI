@@ -1,2 +1,4 @@
 venv/
 helper.py
+.idea
+.DS_Store
